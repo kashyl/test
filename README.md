@@ -28,13 +28,13 @@
 |----|----|-----------------------------------|--------------------------|---------|---------|----------|
 | A. |    | Regional Weather Data             |                          |         |         |          |
 |    | A1 | Capture weather data from API     | OpenWeatherMap           |    X    |         |  Done    |
-|    | A2 | Store the historical data to DB   | Azure Comos DB / MongoDB |    X    |         |          |
+|    | A2 | Store the historical data to DB   | Azure Cosmos DB / MongoDB |    X    |         |          |
 | B. |    | Outdoor Weather Nearby building   |                          |         |         |          |
 |    | B1 | Design Sensors for data retrieval | Raspberry PI / Arduino   |         |         |          |
-|    | B2 | Export Sensors data to DB         | Azure Comos DB / MongoDB |    X    |         |          |
+|    | B2 | Export Sensors data to DB         | Azure Cosmos DB / MongoDB |    X    |         |          |
 | C. |    | Indoor Condition                  |                          |         |         |          |
 |    | C1 | Design Sensors for data retrieval | Raspberry PI / Arduino   |    X    |         |          |
-|    | C2 | Export Sensors data to DB         | Azure Comos DB / MongoDB |    X    |         |          |
+|    | C2 | Export Sensors data to DB         | Azure Cosmos DB / MongoDB |    X    |         |          |
 |    | C3 | Electronics Components controls   | Raspberry PI / Arduino   |    X    |         |          |
 | D. |    | Dashboard                         |                          |         |         |          |
 |    | D1 | Display real time condition       | .NET Core                |         |         |          |
