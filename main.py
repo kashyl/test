@@ -13,16 +13,24 @@ weatherKey = os.environ['WEATHER_API_KEY']  # Fetch OpenWeatherMap API key from 
 location = "Hong Kong"
 
 
-async def weather_command(f_arg=' ', *args):
+async def fetch_weather_data():
     """Fetches the data from the openweathermap.org api asynchronously in weather_resp"""
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'http://api.openweathermap.org/data/2.5/weather?q={location}&APPID={weatherKey}') \
-                as weather_req:
-            weather_resp = json.loads(await weather_req.text())
-            pprint(weather_resp)
-            # converts the default Kelvin to Celsius °C
-            celsius = round(weather_resp['main']['temp'] - 273.15, 2)
+    while True:  # so the loop continues after one run; use this as long as async call is performed inside
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'http://api.openweathermap.org/data/2.5/weather?q={location}&APPID={weatherKey}') \
+                    as weather_req:
+                weather_resp = json.loads(await weather_req.text())
+                pprint(weather_resp)
+                # converts the default Kelvin to Celsius °C
+                celsius = round(weather_resp['main']['temp'] - 273.15, 2)
+        await asyncio.sleep(300)  # the time between API calls
 
-
-loop = asyncio.events.new_event_loop()
-loop.run_until_complete(weather_command())
+loop = asyncio.get_event_loop()
+try:
+    asyncio.ensure_future(fetch_weather_data())
+    loop.run_forever()
+except KeyboardInterrupt:
+    pass
+finally:
+    print("Closing Loop")
+    loop.close()
