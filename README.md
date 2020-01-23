@@ -28,7 +28,7 @@
 |----|----|-----------------------------------|--------------------------|---------|---------|----------|
 | A. |    | Regional Weather Data             |                          |         |         |          |
 |    | A1 | Capture weather data from API     | OpenWeatherMap           |    X    |         |  Done    |
-|    | A2 | Store the historical data to DB   | Azure Cosmos DB / MongoDB |    X    |         |          |
+|    | A2 | Store the historical data to DB   | Azure Cosmos DB / MongoDB |    X    |         | Done     |
 | B. |    | Outdoor Weather Nearby building   |                          |         |         |          |
 |    | B1 | Design Sensors for data retrieval | Raspberry PI / Arduino   |         |         |          |
 |    | B2 | Export Sensors data to DB         | Azure Cosmos DB / MongoDB |    X    |         |          |

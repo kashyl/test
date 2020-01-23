@@ -30,19 +30,34 @@ weather_col = db['regional_weather']
 async def regional_weather_data():
     """Fetches the data from the openweathermap.org api asynchronously in weather_resp"""
     while True:  # so the loop continues after one run; use this as long as async call is performed inside
-        location = "Hong Kong"
+
+        location = "Hong Kong"  # Used for the API call below
+        sleep_timer = 15  # Sets the amount of seconds between each loop, minimum 1 (or the API will refuse requests)
+
         async with aiohttp.ClientSession() as session:
             async with session.get(f'http://api.openweathermap.org/data/2.5/weather?q={location}&APPID={weatherKey}') \
                     as weather_req:
+
                 weather_resp = json.loads(await weather_req.text())  # Converts the request data into JSON format
                 celsius = round(weather_resp['main']['temp'] - 273.15, 2)  # converts the default Kelvin to Celsius °C
-                location_time = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%X, %a %d %b %Y')
-                # pprint(weather_resp)  # for debugging
-                """Create weather_data dictionary to select only important data, convert to JSON then store in DB"""
+
+                """
+                Saves the current time and date of Hong Kong using datetime and pytz library for timezone info.
+                Then strftime is used to make the data more readable using the given properties,
+                more info: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
+                """
+                location_datetime = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%X, %a %d %b %Y')
+                location_date = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d, %A')
+                location_time = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%X')
+
+                """
+                Dictionary in which we put the important stuff from weather_resp and filter out the static or
+                unnecessary/redundant data (such as geolocation) - except location name
+                """
                 weather_data = {
                     'location': weather_resp['name'],
-                    'date': datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%a %d %b %Y'),
-                    'time': datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%X'),
+                    'date': location_date,
+                    'time': location_time,
                     'temperature': celsius,
                     'description': weather_resp['weather'][0]['description'],
                     'wind': weather_resp['wind']['speed'],
@@ -53,13 +68,67 @@ async def regional_weather_data():
                         'temp_max': round(weather_resp['main']['temp_max'] - 273.15, 2)
                     }
                 }
-                weather_col.insert_one(weather_data)  # Store to database
-                # print(datetime.now().strftime('%X'), end=" - ")  # print timestamp
-                print('Stored regional data', end=": ")  # status message
-                print(f'{weather_resp["name"]} @ {location_time} '
-                      f'({celsius}°C, {weather_resp["weather"][0]["description"]})')
 
-        await asyncio.sleep(30)  # the time between API calls
+                """
+                Queries the most recent document within the same day
+                Checks the latest temperature, if it's the same as the current one then do nothing and wait a bit.
+                (It means the API data hasn't updated yet, and we want to avoid flooding the DB with redundant data.)
+                If we get an IndexError, it probably means it couldn't find a document with today's date. 
+                In that case, pass and let the code below create (and then update) one.
+                Otherwise, continue to insert/update data (see below).
+                """
+                try:
+                    last_doc_cursor = weather_col.find({'date': weather_data['date']}).sort([('_id', -1)]).limit(1)
+                    last_doc = list(last_doc_cursor)  # Iterates through the PyMongo cursor and returns the data
+                    last_temperature = last_doc[0]['temperature']
+
+                    if last_temperature == celsius:
+                        print('Waiting for new API data...')
+                        await asyncio.sleep(sleep_timer)
+                        continue
+                except IndexError:
+                    pass
+
+                """
+                Using Bucket Pattern, insert/update the database with the latest weather info.
+                Creates a new document (record in SQL) and stores the data inside it.
+                If a document with the same date already exists, updates its temperature and time of last update,
+                then also adds the data in a history array (which contains all past weather information with details).
+                If the maximum amount of records in a document has been reached, creates a new one (with the same date).
+                
+                """
+                weather_col.update_one(
+                    {  # filter: A query that matches the document to update.
+                        'location': weather_data['location'],  # make sure the data is in the same location/city
+                        'date': weather_data['date'],          # and the same day
+                        'records': {'$lt': 100}  # maximum record count (filter: records less than 100)
+                    },
+                    {  # update: The modifications to apply.
+                        '$set': {'temperature': celsius,  # updates the most important bits
+                                 'last_update': location_time},
+                        '$push': {  # pushes the info in the history array (with all the other data from the same day)
+                            'history': {
+                                'time': location_time,
+                                'temperature': celsius,
+                                'description': weather_resp['weather'][0]['description'],
+                                'wind': weather_resp['wind']['speed'],
+                                'humidity': weather_resp['main']['humidity'],
+                                'details': {
+                                    'temp_feels_like': round(
+                                        weather_resp['main']['feels_like'] - 273.15, 2),
+                                    'temp_min': round(weather_resp['main']['temp_min'] - 273.15, 2),
+                                    'temp_max': round(weather_resp['main']['temp_max'] - 273.15, 2)
+                                }
+                            }},
+                        "$inc": {"records": 1},  # increments the records by 1
+                        "$setOnInsert": {"date": location_date}  # if a new document is inserted, set the date (once)
+                    }, True)  # upsert (optional): If True, perform an insert if no documents match the filter.
+
+                # print(datetime.now().strftime('%X'), end=" - ")  # print timestamp
+                print('Stored regional data', end=": ")
+                print(f'{weather_resp["name"]} @ {location_datetime} '
+                      f'({celsius}°C, {weather_resp["weather"][0]["description"]})')
+        await asyncio.sleep(sleep_timer)
 
 
 """Start of asyncio event loop"""
