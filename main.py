@@ -26,6 +26,7 @@ db = client['mydb']
 users_col = db['users']
 weather_col = db['regional_weather']
 
+# test
 
 async def regional_weather_data():
     """Fetches the data from the openweathermap.org api asynchronously in weather_resp"""
